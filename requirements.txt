@@ -1,1 +1,2 @@
 streamlit\n
+firecrawl-py\npydantic\npython-dotenv\n
