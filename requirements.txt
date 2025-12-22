@@ -1,3 +1,4 @@
 streamlit\n
 firecrawl-py\npydantic\npython-dotenv\n
 psycopg2-binary\nsqlalchemy==2.0.35\n
+pandas\nplotly\n
