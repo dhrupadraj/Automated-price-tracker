@@ -1,8 +1,8 @@
 from sqlalchemy import create_engine, Column, String, Float, DateTime, ForeignKey
 from sqlalchemy.orm import sessionmaker, relationship, declarative_base
-from sqlalchemy import desc
 from datetime import datetime
-import uuid
+
+
 
 Base = declarative_base()
 
@@ -43,3 +43,42 @@ class Database:
             session.commit()
         finally:
             session.close()
+
+    def add_price(self, product_data):
+        session = self.Session()
+        try:
+            price_history = PriceHistory(
+                id=f"{product_data['url']}_{product_data['timestamp']}",
+                product_url=product_data["url"],
+                name=product_data["name"],
+                price=product_data["price"],
+                currency=product_data["currency"],
+                main_image_url=product_data["main_image_url"],
+                timestamp=product_data["timestamp"],
+            )
+            session.add(price_history)
+            session.commit()
+        finally:
+            session.close()
+
+    def get_price_history(self, url):
+        """Get price history for a product"""
+        session = self.Session()
+        try:
+            return (
+                session.query(PriceHistory)
+                .filter(PriceHistory.product_url == url)
+                .order_by(PriceHistory.timestamp.desc())
+                .all()
+            )
+        finally:
+            session.close()
+
+    def get_all_products(self):
+        session = self.Session()
+        try:
+            return session.query(Product).all()
+        finally:
+            session.close()
+print("DATABASE FILE LOADED:", __file__)
+print("Database methods:", [m for m in dir(Database) if not m.startswith("_")])
