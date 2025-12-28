@@ -1,6 +1,8 @@
 from sqlalchemy import create_engine, Column, String, Float, DateTime, ForeignKey
 from sqlalchemy.orm import sessionmaker, relationship, declarative_base
+from sqlalchemy import desc
 from datetime import datetime
+import uuid
 
 Base = declarative_base()
 
