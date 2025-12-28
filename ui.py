@@ -2,7 +2,7 @@ import os
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from database import Database
+from databasemanager import Database
 from dotenv import load_dotenv
 from utils import is_valid_url
 from scraper import scrape_product

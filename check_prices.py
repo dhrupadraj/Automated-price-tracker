@@ -1,5 +1,5 @@
 import os
-from database import Database
+from databasemanager import Database
 from dotenv import load_dotenv
 from firecrawl import FirecrawlApp
 from scraper import scrape_product
