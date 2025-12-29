@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 #from IPython.display import Markdown
 from datetime import datetime
+import re 
 
 load_dotenv()
 
@@ -21,28 +22,19 @@ class Product(BaseModel):
  
   
 def scrape_product(url: str):
-    # Scrape the page as Markdown
     data = app.scrape(url, formats=["markdown"])
+    md = data.markdown
 
-    # Get the Markdown text (not data.content)
-    markdown_content = data.markdown
+    # ---- TITLE ----
+    name = md.split("\n")[0].replace("#", "").strip() or "Unknown Product"
 
-    # Parse with BeautifulSoup (works for Markdown too, since it's mostly HTML)
-    soup = BeautifulSoup(markdown_content, "html.parser")
+    # ---- PRICE ----
+    price_match = re.search(r"\$([\d,]+\.?\d*)", md)
+    price = float(price_match.group(1).replace(",", "")) if price_match else 0.0
 
-    # Extract product info (example for Amazon)
-    title_tag = soup.find("span", {"id": "productTitle"})
-    name = title_tag.get_text(strip=True) if title_tag else "N/A"
-
-    price_tag = soup.find("span", {"id": "priceblock_ourprice"})
-    price_text = price_tag.get_text(strip=True) if price_tag else "0"
-    try:
-        price = float(price_text.replace("$", "").replace(",", ""))
-    except ValueError:
-        price = 0.0
-
-    img_tag = soup.find("img", {"id": "landingImage"})
-    main_image_url = img_tag["src"] if img_tag else ""
+    # ---- IMAGE ----
+    img_match = re.search(r"!\[.*?\]\((https?://.*?)\)", md)
+    main_image_url = img_match.group(1) if img_match else ""
 
     return {
         "url": url,
