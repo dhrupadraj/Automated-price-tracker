@@ -30,6 +30,15 @@ class PriceHistory(Base):
 
 class Database:
     def __init__(self, connection_string):
+        if not connection_string:
+            raise ValueError("Connection string is required")
+        
+        # Ensure SSL is enabled for Supabase connections
+        if "supabase.co" in connection_string and "sslmode" not in connection_string:
+            # Add sslmode=require if not present
+            separator = "&" if "?" in connection_string else "?"
+            connection_string = f"{connection_string}{separator}sslmode=require"
+        
         self.engine = create_engine(connection_string)
         Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine)
