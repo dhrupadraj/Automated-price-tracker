@@ -3,7 +3,7 @@ from firecrawl import Firecrawl
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
-from IPython.display import Markdown
+#from IPython.display import Markdown
 from datetime import datetime
 
 load_dotenv()
