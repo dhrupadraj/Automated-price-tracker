@@ -1,13 +1,13 @@
 import os
 from databasemanager import Database
 from dotenv import load_dotenv
-from firecrawl import FirecrawlApp
+from firecrawl import Firecrawl
 from scraper import scrape_product
 
 load_dotenv()
 
 db = Database(os.getenv("POSTGRES_URL"))
-app = FirecrawlApp()
+app = Firecrawl()
 
 def check_prices():
     products = db.get_all_products()
