@@ -1,10 +1,11 @@
 import os
+import re
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 from databasemanager import Database
 from dotenv import load_dotenv
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from utils import is_valid_url
 from scraper import scrape_product
 
@@ -18,6 +19,11 @@ def get_secret_value(key: str):
     return st.secrets.get(key)
 
 
+def _sanitize_error_message(message: str) -> str:
+    # Redact credential fragments from URLs before showing errors in UI.
+    return re.sub(r"://([^:@/]+):([^@/]+)@", r"://\1:***@", message)
+
+
 postgres_url = get_secret_value("POSTGRES_URL")
 if not postgres_url:
     st.error("POSTGRES_URL is missing. Add it to Streamlit secrets or environment variables.")
@@ -26,14 +32,23 @@ if not postgres_url:
 with st.spinner("Loading database..."):
     try:
         db = Database(postgres_url)
-    except OperationalError:
+    except OperationalError as e:
+        detail = _sanitize_error_message(str(getattr(e, "orig", e)))
         st.error("Database connection failed. Check POSTGRES_URL credentials, host, and sslmode.")
+        st.code(detail)
+        st.stop()
+    except SQLAlchemyError as e:
+        detail = _sanitize_error_message(str(e))
+        st.error("Database setup failed with SQLAlchemy error.")
+        st.code(detail)
         st.stop()
     except ValueError as e:
         st.error(str(e))
         st.stop()
-    except Exception:
+    except Exception as e:
+        detail = _sanitize_error_message(str(e))
         st.error("Database initialization failed. Check Streamlit logs for the exact connection error.")
+        st.code(detail if detail else repr(e))
         st.stop()
 
 
