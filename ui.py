@@ -4,13 +4,37 @@ import pandas as pd
 import plotly.express as px
 from databasemanager import Database
 from dotenv import load_dotenv
+from sqlalchemy.exc import OperationalError
 from utils import is_valid_url
 from scraper import scrape_product
 
 load_dotenv()
 
+
+def get_secret_value(key: str):
+    env_value = os.getenv(key)
+    if env_value:
+        return env_value
+    return st.secrets.get(key)
+
+
+postgres_url = get_secret_value("POSTGRES_URL")
+if not postgres_url:
+    st.error("POSTGRES_URL is missing. Add it to Streamlit secrets or environment variables.")
+    st.stop()
+
 with st.spinner("Loading database..."):
-    db = Database(os.getenv("POSTGRES_URL"))
+    try:
+        db = Database(postgres_url)
+    except OperationalError:
+        st.error("Database connection failed. Check POSTGRES_URL credentials, host, and sslmode.")
+        st.stop()
+    except ValueError as e:
+        st.error(str(e))
+        st.stop()
+    except Exception:
+        st.error("Database initialization failed. Check Streamlit logs for the exact connection error.")
+        st.stop()
 
 
 # Set up sidebar
@@ -27,9 +51,15 @@ with st.sidebar:
         else:
             db.add_product(product_url)  # This is the new line
             with st.spinner("Added product to database. Scraping product data..."):
-                product_data = scrape_product(product_url)
-                db.add_price(product_data)
-            st.success("Product is now being tracked!")
+                try:
+                    product_data = scrape_product(product_url)
+                    db.add_price(product_data)
+                except ValueError as e:
+                    st.error(str(e))
+                except Exception:
+                    st.error("Failed to scrape product data. Please try again.")
+                else:
+                    st.success("Product is now being tracked!")
 
 # Main content
 st.title("Price Tracker Dashboard")

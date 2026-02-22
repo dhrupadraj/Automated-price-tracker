@@ -3,15 +3,34 @@ from firecrawl import Firecrawl
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from datetime import datetime
+from typing import Optional
 import re
 
 load_dotenv()
 
-firecrawl_api_key = os.getenv("FIRECRAWL_API_KEY")
-if not firecrawl_api_key:
-    raise ValueError("FIRECRAWL_API_KEY is missing in environment variables.")
 
-app = Firecrawl(firecrawl_api_key)
+def _get_secret_value(key: str) -> Optional[str]:
+    value = os.getenv(key)
+    if value:
+        return value
+
+    try:
+        import streamlit as st
+
+        if key in st.secrets:
+            return st.secrets[key]
+    except Exception:
+        return None
+
+    return None
+
+
+def _get_firecrawl_client() -> Firecrawl:
+    firecrawl_api_key = _get_secret_value("FIRECRAWL_API_KEY")
+    if not firecrawl_api_key:
+        raise ValueError("FIRECRAWL_API_KEY is missing in environment variables or Streamlit secrets.")
+    return Firecrawl(firecrawl_api_key)
+
 
 class Product(BaseModel):
     """Schema for creating a new product"""
@@ -24,6 +43,7 @@ class Product(BaseModel):
 
 
 def scrape_product(url: str):
+    app = _get_firecrawl_client()
     data = app.scrape(url, formats=["markdown"])
     md = data.markdown or ""
 
