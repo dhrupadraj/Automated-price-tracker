@@ -1,17 +1,21 @@
-from sqlalchemy import create_engine, Column, String, Float, DateTime, ForeignKey
-from sqlalchemy.orm import sessionmaker, relationship, declarative_base
 from datetime import datetime
+from typing import Optional
+
+from sqlalchemy import DateTime, Float, ForeignKey, String, create_engine
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
+from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 
 
 
-Base = declarative_base()
+class Base(DeclarativeBase):
+    pass
 
 
 class Product(Base):
     __tablename__ = "products"
 
-    url = Column(String, primary_key=True)
-    prices = relationship(
+    url: Mapped[str] = mapped_column(String, primary_key=True)
+    prices: Mapped[list["PriceHistory"]] = relationship(
         "PriceHistory", back_populates="product", cascade="all, delete-orphan"
     )
 
@@ -19,27 +23,58 @@ class Product(Base):
 class PriceHistory(Base):
     __tablename__ = "price_histories"
 
-    id = Column(String, primary_key=True)
-    product_url = Column(String, ForeignKey("products.url"))
-    name = Column(String, nullable=False)
-    price = Column(Float, nullable=False)
-    currency = Column(String, nullable=False)
-    main_image_url = Column(String)
-    timestamp = Column(DateTime, nullable=False)
-    product = relationship("Product", back_populates="prices")
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    product_url: Mapped[str] = mapped_column(String, ForeignKey("products.url"))
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    price: Mapped[float] = mapped_column(Float, nullable=False)
+    currency: Mapped[str] = mapped_column(String, nullable=False)
+    main_image_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    product: Mapped[Product] = relationship("Product", back_populates="prices")
+
+
+def _normalize_postgres_url(connection_string: str) -> str:
+    normalized = connection_string.strip().strip("'").strip('"')
+    if normalized.startswith("postgres://"):
+        normalized = normalized.replace("postgres://", "postgresql://", 1)
+
+    parsed = urlsplit(normalized)
+    if not parsed.scheme or not parsed.hostname:
+        raise ValueError("POSTGRES_URL is invalid: missing scheme or host")
+
+    host = parsed.hostname
+    if host is None:
+        raise ValueError("POSTGRES_URL is invalid: could not parse host")
+
+    host_part = host
+    if parsed.port is not None:
+        host_part = f"{host_part}:{parsed.port}"
+
+    userinfo = ""
+    if parsed.username is not None:
+        username = quote(parsed.username, safe="")
+        if parsed.password is not None:
+            password = quote(parsed.password, safe="")
+            userinfo = f"{username}:{password}@"
+        else:
+            userinfo = f"{username}@"
+
+    query_params = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    if "supabase.co" in host and "sslmode" not in query_params:
+        query_params["sslmode"] = "require"
+
+    return urlunsplit(
+        (parsed.scheme, f"{userinfo}{host_part}", parsed.path, urlencode(query_params), parsed.fragment)
+    )
+
 
 class Database:
     def __init__(self, connection_string):
         if not connection_string:
             raise ValueError("Connection string is required")
-        
-        # Ensure SSL is enabled for Supabase connections
-        if "supabase.co" in connection_string and "sslmode" not in connection_string:
-            # Add sslmode=require if not present
-            separator = "&" if "?" in connection_string else "?"
-            connection_string = f"{connection_string}{separator}sslmode=require"
-        
-        self.engine = create_engine(connection_string)
+
+        normalized_connection_string = _normalize_postgres_url(connection_string)
+        self.engine = create_engine(normalized_connection_string)
         Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine)
 
@@ -89,5 +124,3 @@ class Database:
             return session.query(Product).all()
         finally:
             session.close()
-print("DATABASE FILE LOADED:", __file__)
-print("Database methods:", [m for m in dir(Database) if not m.startswith("_")])

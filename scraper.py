@@ -2,14 +2,16 @@ import os
 from firecrawl import Firecrawl
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
-from bs4 import BeautifulSoup
-#from IPython.display import Markdown
 from datetime import datetime
-import re 
+import re
 
 load_dotenv()
 
-app = Firecrawl(os.getenv("FIRECRAWL_API_KEY"))
+firecrawl_api_key = os.getenv("FIRECRAWL_API_KEY")
+if not firecrawl_api_key:
+    raise ValueError("FIRECRAWL_API_KEY is missing in environment variables.")
+
+app = Firecrawl(firecrawl_api_key)
 
 class Product(BaseModel):
     """Schema for creating a new product"""
@@ -19,11 +21,11 @@ class Product(BaseModel):
     price: float = Field(description="The current price of the product")
     currency: str = Field(description="Currency code (USD, EUR, etc)")
     main_image_url: str = Field(description="The URL of the main image of the product")
- 
-  
+
+
 def scrape_product(url: str):
     data = app.scrape(url, formats=["markdown"])
-    md = data.markdown
+    md = data.markdown or ""
 
     # ---- TITLE ----
     name = md.split("\n")[0].replace("#", "").strip() or "Unknown Product"
